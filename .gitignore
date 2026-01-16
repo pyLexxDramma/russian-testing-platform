@@ -42,3 +42,14 @@ next-env.d.ts
 
 # payment storage
 .payment-storage/
+
+# Documentation files (keep locally, exclude from repo)
+STATUS_REPORT.md
+TZ_COMPLIANCE_CHECK.md
+TODO_FOR_CLIENT.md
+COLLECT_QUESTIONS.md
+PLAN.md
+
+# Scripts (keep locally, exclude from repo)
+fix-commits.sh
+commit-ru.ps1
