@@ -48,8 +48,8 @@ export function calculateTestResult(
     })
   );
 
-  const passingScore = getPassingScore(testLevel);
-  const passed = totalCorrect >= passingScore;
+  const passingPercentage = getPassingPercentage(testLevel);
+  const passed = percentage >= passingPercentage;
   const duration = endTime - startTime;
 
   return {
@@ -67,16 +67,16 @@ export function calculateTestResult(
   };
 }
 
-function getPassingScore(testLevel: number): number {
+function getPassingPercentage(testLevel: number): number {
   switch (testLevel) {
     case 1:
-      return 180;
+      return 60;
     case 2:
-      return 210;
+      return 60;
     case 3:
-      return 240;
+      return 60;
     default:
-      return 0;
+      return 60;
   }
 }
 

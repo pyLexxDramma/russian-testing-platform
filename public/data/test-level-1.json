@@ -1,0 +1,56 @@
+{
+  "level": 1,
+  "title": "Разрешение на работу (патент)",
+  "description": "Тест для получения разрешения на работу в РФ",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "text-choice",
+      "text": "Выберите правильный перевод слова 'привет':",
+      "section": "Лексика-Грамматика",
+      "correctAnswer": "opt1",
+      "options": [
+        { "id": "opt1", "text": "hello" },
+        { "id": "opt2", "text": "goodbye" },
+        { "id": "opt3", "text": "thank you" }
+      ]
+    },
+    {
+      "id": "q2",
+      "type": "text-audio-choice",
+      "text": "Прослушайте аудио и выберите правильный вариант:",
+      "section": "Аудирование",
+      "correctAnswer": "optA",
+      "audioUrl": "/audio/test-audio.mp3",
+      "options": [
+        { "id": "optA", "text": "Я люблю программировать" },
+        { "id": "optB", "text": "Я не люблю программировать" }
+      ]
+    },
+    {
+      "id": "q3",
+      "type": "text-table-input",
+      "text": "Заполните пропуск в таблице: 'Столица России - ______':",
+      "section": "Чтение",
+      "correctAnswer": "Москва",
+      "tableData": {
+        "Страна": ["Россия"],
+        "Столица": [""]
+      }
+    },
+    {
+      "id": "q4",
+      "type": "text-image-choice",
+      "text": "Какое изображение соответствует слову 'книга'?",
+      "section": "Лексика-Грамматика",
+      "correctAnswer": "img1",
+      "options": [
+        { "id": "img1", "imageUrl": "/images/book.png", "alt": "Книга" },
+        { "id": "img2", "imageUrl": "/images/car.png", "alt": "Машина" }
+      ]
+    }
+  ],
+  "sections": ["Лексика-Грамматика", "Аудирование", "Чтение"],
+  "totalQuestions": 4,
+  "passingScore": 3
+}

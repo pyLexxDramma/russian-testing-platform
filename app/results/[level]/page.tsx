@@ -1,18 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { TestResult } from '@/types/result';
 import { calculateTestResult, formatDuration } from '@/lib/utils/testCalculator';
-import { shouldShowFreeResults } from '@/lib/ab-test/abTest';
+import { shouldShowFreeResults, getABTestGroup } from '@/lib/ab-test/abTest';
+import { ContactForm, ContactData } from '@/components/contact';
+import { trackFormSubmit } from '@/lib/analytics/analytics';
 
 export default function ResultsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const level = parseInt(params.level as string);
 
   const [result, setResult] = useState<TestResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [paid, setPaid] = useState(false);
 
   useEffect(() => {
     const loadResult = async () => {
@@ -38,6 +44,25 @@ export default function ResultsPage() {
 
         setResult(calculatedResult);
         setLoading(false);
+
+        const isPaidParam = searchParams.get('paid') === 'true';
+        const paidKey = `payment_${level}_paid`;
+        const wasPaid = localStorage.getItem(paidKey) === 'true' || isPaidParam;
+        
+        if (wasPaid) {
+          setPaid(true);
+          if (isPaidParam) {
+            localStorage.setItem(paidKey, 'true');
+          }
+        }
+
+        const contactSubmittedKey = `contact_submitted_${level}`;
+        const wasContactSubmitted = localStorage.getItem(contactSubmittedKey) === 'true';
+        setContactSubmitted(wasContactSubmitted);
+
+        if (!wasContactSubmitted) {
+          setShowContactForm(true);
+        }
       } catch (error) {
         console.error('Ошибка загрузки результатов:', error);
         router.push('/');
@@ -45,7 +70,7 @@ export default function ResultsPage() {
     };
 
     loadResult();
-  }, [level, router]);
+  }, [level, router, searchParams]);
 
   if (loading) {
     return (
@@ -59,7 +84,58 @@ export default function ResultsPage() {
     return null;
   }
 
-  const showResults = shouldShowFreeResults();
+  const handleContactSubmit = async (contactData: ContactData) => {
+    try {
+      const abTestGroup = getABTestGroup();
+      const isPaid = abTestGroup === 'paid';
+
+      await fetch('/api/bitrix24', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: contactData.name,
+          email: contactData.email,
+          phone: contactData.phone,
+          testLevel: level,
+          testResult: {
+            totalCorrect: result.totalCorrect,
+            totalQuestions: result.totalQuestions,
+            percentage: result.percentage,
+            passed: result.passed,
+          },
+          abTestGroup,
+        }),
+      });
+
+      trackFormSubmit(isPaid);
+
+      localStorage.setItem(`contact_submitted_${level}`, 'true');
+      setContactSubmitted(true);
+      setShowContactForm(false);
+    } catch (error) {
+      console.error('Ошибка отправки контактов:', error);
+    }
+  };
+
+  const showResults = shouldShowFreeResults() || paid;
+
+  if (showContactForm && !contactSubmitted) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h1 className="text-3xl font-bold mb-6">Контактные данные</h1>
+            <p className="text-gray-600 mb-6">
+              Пожалуйста, укажите ваши контактные данные для получения результатов теста
+            </p>
+            <ContactForm onSubmit={handleContactSubmit} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

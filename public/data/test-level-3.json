@@ -1,0 +1,56 @@
+{
+  "level": 3,
+  "title": "Вид на жительство в РФ",
+  "description": "Тест для получения ВНЖ",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "text-choice",
+      "text": "Выберите правильный вариант: Я изучаю русский язык _____ три года.",
+      "section": "Лексика-Грамматика",
+      "correctAnswer": "opt1",
+      "options": [
+        { "id": "opt1", "text": "уже" },
+        { "id": "opt2", "text": "еще" },
+        { "id": "opt3", "text": "только" }
+      ]
+    },
+    {
+      "id": "q2",
+      "type": "text-audio-choice",
+      "text": "Прослушайте аудио и выберите правильный вариант:",
+      "section": "Аудирование",
+      "correctAnswer": "optA",
+      "audioUrl": "/audio/test-audio-3.mp3",
+      "options": [
+        { "id": "optA", "text": "Вариант A" },
+        { "id": "optB", "text": "Вариант B" }
+      ]
+    },
+    {
+      "id": "q3",
+      "type": "text-table-input",
+      "text": "Заполните таблицу правильной формой слова:",
+      "section": "Чтение",
+      "correctAnswer": "студенты",
+      "tableData": {
+        "Единственное число": ["студент"],
+        "Множественное число": [""]
+      }
+    },
+    {
+      "id": "q4",
+      "type": "text-image-choice",
+      "text": "Какое изображение соответствует слову 'школа'?",
+      "section": "Лексика-Грамматика",
+      "correctAnswer": "img1",
+      "options": [
+        { "id": "img1", "imageUrl": "/images/school.png", "alt": "Школа" },
+        { "id": "img2", "imageUrl": "/images/hospital.png", "alt": "Больница" }
+      ]
+    }
+  ],
+  "sections": ["Лексика-Грамматика", "Аудирование", "Чтение", "Письмо", "Говорение"],
+  "totalQuestions": 4,
+  "passingScore": 3
+}
