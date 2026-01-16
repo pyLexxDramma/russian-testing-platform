@@ -1,0 +1,34 @@
+{
+  "level": 2,
+  "title": "Разрешение на временное проживание в РФ",
+  "description": "Тест для получения РВП",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "text-choice",
+      "text": "Выберите правильную форму глагола: Я _____ в Москве.",
+      "section": "Лексика-Грамматика",
+      "correctAnswer": "opt2",
+      "options": [
+        { "id": "opt1", "text": "жить" },
+        { "id": "opt2", "text": "живу" },
+        { "id": "opt3", "text": "живут" }
+      ]
+    },
+    {
+      "id": "q2",
+      "type": "text-audio-choice",
+      "text": "Прослушайте диалог и выберите правильный ответ:",
+      "section": "Аудирование",
+      "correctAnswer": "optB",
+      "audioUrl": "/audio/test-audio-2.mp3",
+      "options": [
+        { "id": "optA", "text": "В магазине" },
+        { "id": "optB", "text": "В библиотеке" }
+      ]
+    }
+  ],
+  "sections": ["Лексика-Грамматика", "Аудирование", "Чтение", "Письмо"],
+  "totalQuestions": 2,
+  "passingScore": 1
+}
