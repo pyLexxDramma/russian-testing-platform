@@ -1,0 +1,56 @@
+{
+  "level": 2,
+  "title": "Разрешение на временное проживание в РФ",
+  "description": "Тест для получения РВП",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "text-choice",
+      "text": "Выберите правильную форму глагола: Я _____ в Москве.",
+      "section": "Лексика-Грамматика",
+      "correctAnswer": "opt2",
+      "options": [
+        { "id": "opt1", "text": "жить" },
+        { "id": "opt2", "text": "живу" },
+        { "id": "opt3", "text": "живут" }
+      ]
+    },
+    {
+      "id": "q2",
+      "type": "text-audio-choice",
+      "text": "Прослушайте диалог и выберите правильный ответ:",
+      "section": "Аудирование",
+      "correctAnswer": "optB",
+      "audioUrl": "/audio/test-audio-2.mp3",
+      "options": [
+        { "id": "optA", "text": "В магазине" },
+        { "id": "optB", "text": "В библиотеке" }
+      ]
+    },
+    {
+      "id": "q3",
+      "type": "text-table-input",
+      "text": "Заполните таблицу правильной формой слова:",
+      "section": "Чтение",
+      "correctAnswer": "студенты",
+      "tableData": {
+        "Единственное число": ["студент"],
+        "Множественное число": [""]
+      }
+    },
+    {
+      "id": "q4",
+      "type": "text-image-choice",
+      "text": "Какое изображение соответствует слову 'дом'?",
+      "section": "Лексика-Грамматика",
+      "correctAnswer": "img1",
+      "options": [
+        { "id": "img1", "imageUrl": "/images/house.png", "alt": "Дом" },
+        { "id": "img2", "imageUrl": "/images/car.png", "alt": "Машина" }
+      ]
+    }
+  ],
+  "sections": ["Лексика-Грамматика", "Аудирование", "Чтение", "Письмо"],
+  "totalQuestions": 4,
+  "passingScore": 3
+}

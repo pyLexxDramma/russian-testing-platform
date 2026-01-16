@@ -1,36 +1,318 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Онлайн-платформа пробного тестирования по русскому языку
 
-## Getting Started
+Платформа для пробного тестирования по русскому языку для получения РВП, ВНЖ и гражданства РФ.
 
-First, run the development server:
+## Описание проекта
+
+Статичный веб-сайт с интерактивными тестами, системой платных результатов и интеграцией с Битрикс24 для сбора лидов.
+
+### Особенности
+
+- 3 уровня тестов (Разрешение на работу, РВП, ВНЖ)
+- 4 типа вопросов (текстовые, с аудио, с таблицей, с картинками)
+- A/B тестирование результатов (50% бесплатно, 50% платно)
+- Интеграция с Битрикс24 для сбора лидов
+- Интеграция с ЮKassa для приема платежей
+- Аналитика (Google Analytics, Яндекс.Метрика)
+
+## Технический стек
+
+- **Frontend**: Next.js 16 + React 19 + TypeScript
+- **Styling**: Tailwind CSS 4
+- **Интеграции**: Битрикс24 API, ЮKassa API
+- **Аналитика**: Google Analytics, Яндекс.Метрика
+
+## Быстрый старт
+
+### 1. Установка зависимостей
+
+```bash
+npm install
+```
+
+### 2. Настройка переменных окружения
+
+Создайте файл `.env.local` в корне проекта:
+
+```env
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+NEXT_PUBLIC_BITRIX24_WEBHOOK_URL=https://your-bitrix24-domain.bitrix24.ru/rest/1/webhook_code/
+
+YOOKASSA_SHOP_ID=your_shop_id
+YOOKASSA_SECRET_KEY=your_secret_key
+YOOKASSA_API_URL=https://api.yookassa.ru/v3
+
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+NEXT_PUBLIC_YANDEX_METRIKA_ID=12345678
+```
+
+**Примечание:** Для локальной разработки можно оставить пустыми значения для аналитики и платежей.
+
+### 3. Запуск проекта
+
+#### Режим разработки:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте [http://localhost:3000](http://localhost:3000) в браузере.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+#### Продакшн сборка:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+### 4. Проверка работы
 
-To learn more about Next.js, take a look at the following resources:
+1. Откройте http://localhost:3000
+2. Выберите уровень теста
+3. Пройдите тест
+4. Проверьте результаты
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Структура проекта
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+russian-testing-platform/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   │   ├── bitrix24/      # Битрикс24 интеграция
+│   │   ├── yookassa/      # ЮKassa интеграция
+│   │   └── payment/       # Проверка оплаты
+│   ├── test/[level]/      # Страница прохождения теста
+│   ├── results/[level]/   # Страница результатов
+│   ├── payment/[level]/   # Страница оплаты
+│   └── page.tsx           # Главная страница
+├── components/             # React компоненты
+│   ├── questions/         # Компоненты вопросов
+│   ├── test/              # Компоненты теста
+│   ├── contact/           # Форма контактов
+│   ├── analytics/         # Аналитика
+│   └── ui/                # UI компоненты
+├── lib/                    # Утилиты и логика
+│   ├── ab-test/           # A/B тестирование
+│   ├── analytics/         # Аналитика
+│   ├── bitrix24/          # Битрикс24
+│   └── utils/             # Утилиты
+├── public/                 # Статические файлы
+│   ├── data/              # JSON файлы с вопросами
+│   ├── audio/             # Аудиофайлы
+│   └── images/            # Изображения
+├── types/                  # TypeScript типы
+└── .env.local             # Переменные окружения (создать)
+```
 
-## Deploy on Vercel
+## Использование
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Прохождение теста
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. На главной странице выберите уровень теста (1, 2 или 3)
+2. Ответьте на все вопросы
+3. Используйте кнопки "Назад" и "Далее" для навигации
+4. Нажмите "Завершить тест"
+
+### Результаты теста
+
+После завершения теста:
+
+1. Заполните форму контактов (имя, email, телефон)
+2. В зависимости от A/B группы:
+   - **Группа "free"**: Результаты показываются сразу
+   - **Группа "paid"**: Показывается предложение оплаты
+
+### Оплата результатов
+
+1. Нажмите "Перейти к оплате"
+2. Вы будете перенаправлены на страницу ЮKassa
+3. После успешной оплаты результаты будут доступны
+
+## Типы вопросов
+
+Платформа поддерживает 4 типа вопросов:
+
+1. **Текстовый вопрос с вариантами** (`text-choice`)
+   - Выбрать один вариант из предложенных
+
+2. **Текстовый вопрос с аудиозаписью** (`text-audio-choice`)
+   - Прослушать аудио и выбрать вариант
+
+3. **Текстовый вопрос с таблицей** (`text-table-input`)
+   - Вписать ответ в поле таблицы
+
+4. **Текстовый вопрос с картинками** (`text-image-choice`)
+   - Выбрать вариант по изображению
+
+## A/B тестирование
+
+Система автоматически распределяет пользователей 50/50:
+
+- **Группа "free"**: Результаты показываются сразу после заполнения формы
+- **Группа "paid"**: Результаты показываются после оплаты
+
+### Отключение A/B теста
+
+В консоли браузера (F12):
+
+```javascript
+localStorage.setItem('ab_test_enabled', 'false')
+```
+
+После этого все пользователи будут в группе "free".
+
+## Интеграции
+
+### Битрикс24
+
+Отправка лидов происходит автоматически после заполнения формы контактов.
+
+**Настройка:**
+1. Создайте вебхук в Битрикс24
+2. Укажите URL в `NEXT_PUBLIC_BITRIX24_WEBHOOK_URL`
+3. Настройте пользовательские поля (если нужны):
+   - `UF_CRM_TEST_LEVEL` - уровень теста
+   - `UF_CRM_TEST_RESULT` - результат теста
+   - `UF_CRM_TEST_PASSED` - пройден/не пройден
+   - `UF_CRM_AB_TEST_GROUP` - группа A/B теста
+
+### ЮKassa
+
+**Настройка:**
+1. Получите Shop ID и Secret Key в личном кабинете ЮKassa
+2. Укажите в `.env.local`:
+   - `YOOKASSA_SHOP_ID`
+   - `YOOKASSA_SECRET_KEY`
+3. Настройте webhook URL в настройках ЮKassa (для продакшн)
+
+**Тестирование:**
+- Используйте тестовые credentials для разработки
+- Webhook должен быть доступен по публичному URL (используйте ngrok для локального тестирования)
+
+### Аналитика
+
+**Google Analytics:**
+1. Создайте свойство в Google Analytics
+2. Получите ID (формат: G-XXXXXXXXXX)
+3. Укажите в `NEXT_PUBLIC_GA_ID`
+
+**Яндекс.Метрика:**
+1. Создайте счетчик в Яндекс.Метрике
+2. Получите ID счетчика
+3. Укажите в `NEXT_PUBLIC_YANDEX_METRIKA_ID`
+
+**Отслеживаемые события:**
+- `form_submit` - любое прохождение теста
+- `free_form_submit` - бесплатная группа
+- `paid_form_submit` - платная группа
+
+## Данные тестов
+
+### Текущее состояние
+
+В проекте находятся тестовые данные (по 4 вопроса в каждом тесте).
+
+### Сбор реальных данных
+
+Для полноценной работы нужно собрать вопросы с официального сайта:
+https://inostr-exam.fipi.ru/xmodules/qprint/index.php
+
+**Требуемое количество:**
+- Уровень 1: 180 вопросов
+- Уровень 2: 210 вопросов
+- Уровень 3: 240 вопросов
+
+**Инструкция по сбору:** См. `COLLECT_QUESTIONS.md`
+
+### Медиафайлы
+
+Для вопросов с аудио и картинками нужно:
+1. Скачать аудиофайлы → разместить в `public/audio/`
+2. Скачать изображения → разместить в `public/images/`
+
+## Разработка
+
+### Команды
+
+```bash
+# Разработка
+npm run dev
+
+# Продакшн сборка
+npm run build
+
+# Запуск продакшн версии
+npm start
+
+# Линтинг
+npm run lint
+```
+
+### Структура данных
+
+#### Формат вопроса
+
+```typescript
+{
+  id: string;
+  type: 'text-choice' | 'text-audio-choice' | 'text-table-input' | 'text-image-choice';
+  text: string;
+  section: string;
+  correctAnswer: string;
+  // Дополнительные поля в зависимости от типа
+}
+```
+
+#### Формат теста
+
+```json
+{
+  "level": 1,
+  "title": "Разрешение на работу (патент)",
+  "description": "Тест для получения разрешения на работу в РФ",
+  "questions": [...],
+  "sections": ["Лексика-Грамматика", "Аудирование", "Чтение", "Письмо", "Говорение"],
+  "totalQuestions": 180,
+  "passingScore": 108
+}
+```
+
+## Деплой
+
+### Vercel (рекомендуется)
+
+1. Подключите репозиторий к Vercel
+2. Настройте переменные окружения в настройках проекта
+3. Деплой произойдет автоматически
+
+### Другие платформы
+
+Проект можно задеплоить на любую платформу, поддерживающую Next.js:
+- Netlify
+- AWS Amplify
+- DigitalOcean App Platform
+- И другие
+
+## Требования
+
+- Node.js 18+ 
+- npm или yarn
+
+## Лицензия
+
+Проект разработан для внутреннего использования.
+
+## Поддержка
+
+При возникновении проблем проверьте:
+1. Консоль браузера (F12) на наличие ошибок
+2. Логи сервера
+3. Настройки переменных окружения
+4. Доступность внешних API (Битрикс24, ЮKassa)
+
+## Документация
+
+- `COLLECT_QUESTIONS.md` - Инструкция по сбору вопросов
+- `TZ_COMPLIANCE_CHECK.md` - Отчет о соответствии ТЗ
+- `TODO_FOR_CLIENT.md` - Список задач для заказчика

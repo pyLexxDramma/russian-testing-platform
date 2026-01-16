@@ -15,6 +15,8 @@ export default function TestPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [startTime] = useState(Date.now());
 
   useEffect(() => {
@@ -30,11 +32,26 @@ export default function TestPage() {
 
     const loadQuestions = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const response = await fetch(`/data/test-level-${level}.json`);
+        
+        if (!response.ok) {
+          throw new Error(`Ошибка загрузки: ${response.status}`);
+        }
+        
         const data = await response.json();
-        setQuestions(data.questions || []);
+        
+        if (!data.questions || data.questions.length === 0) {
+          throw new Error('Файл теста не содержит вопросов');
+        }
+        
+        setQuestions(data.questions);
       } catch (error) {
         console.error('Ошибка загрузки вопросов:', error);
+        setError(error instanceof Error ? error.message : 'Не удалось загрузить вопросы');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -94,11 +111,37 @@ export default function TestPage() {
     router.push(`/results/${level}`);
   };
 
-  if (!currentQuestion) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-lg text-gray-600">Загрузка вопросов...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <p className="text-lg text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Вернуться на главную
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentQuestion || questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-gray-600">Вопросы не найдены</p>
         </div>
       </div>
     );

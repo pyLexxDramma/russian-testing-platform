@@ -1,5 +1,5 @@
 import { TextAudioChoiceQuestion as TextAudioChoiceQuestionType } from '@/types/question';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface TextAudioChoiceQuestionProps {
   question: TextAudioChoiceQuestionType;
@@ -13,12 +13,65 @@ export default function TextAudioChoiceQuestion({
   onChange,
 }: TextAudioChoiceQuestionProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const handlePlay = () => {
-    const audio = new Audio(question.audioUrl);
-    audio.play();
-    setIsPlaying(true);
-    audio.onended = () => setIsPlaying(false);
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const handlePlay = async () => {
+    try {
+      setError(null);
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
+      const audio = new Audio(question.audioUrl);
+      audioRef.current = audio;
+
+      audio.onloadeddata = () => {
+        setIsPlaying(true);
+      };
+
+      audio.onerror = (e) => {
+        setError('Не удалось загрузить аудиофайл');
+        setIsPlaying(false);
+        audioRef.current = null;
+      };
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        audioRef.current = null;
+      };
+
+      audio.onpause = () => {
+        setIsPlaying(false);
+      };
+
+      await audio.play();
+    } catch (err) {
+      setError('Не удалось воспроизвести аудио');
+      setIsPlaying(false);
+      if (audioRef.current) {
+        audioRef.current = null;
+      }
+    }
+  };
+
+  const handleStop = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setIsPlaying(false);
+    }
   };
 
   return (
@@ -26,12 +79,14 @@ export default function TextAudioChoiceQuestion({
       <p className="text-lg font-medium">{question.text}</p>
       <div className="flex items-center space-x-4">
         <button
-          onClick={handlePlay}
-          disabled={isPlaying}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          onClick={isPlaying ? handleStop : handlePlay}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          {isPlaying ? 'Воспроизведение...' : '▶ Проиграть аудио'}
+          {isPlaying ? '⏸ Остановить' : '▶ Проиграть аудио'}
         </button>
+        {error && (
+          <p className="text-sm text-red-600">{error}</p>
+        )}
       </div>
       <div className="space-y-2">
         {question.options.map((option) => (
