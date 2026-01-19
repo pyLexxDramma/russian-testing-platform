@@ -10,20 +10,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    const storageDir = join(process.cwd(), '.payment-storage');
-    const paymentKey = `payment_${testLevel}_${paymentId}`;
-    const paymentFile = join(storageDir, `${paymentKey}.json`);
+    const storagePath = join(process.cwd(), '.payment-storage');
+    const fileKey = `payment_${testLevel}_${paymentId}`;
+    const filePath = join(storagePath, `${fileKey}.json`);
 
-    if (existsSync(paymentFile)) {
-      const paymentData = JSON.parse(readFileSync(paymentFile, 'utf-8'));
-      return NextResponse.json({ paid: true, paymentData });
+    if (existsSync(filePath)) {
+      // Может быть поврежден JSON, обрабатываем
+      try {
+        const data = JSON.parse(readFileSync(filePath, 'utf-8'));
+        return NextResponse.json({ paid: true, paymentData: data });
+      } catch (parseErr) {
+        // Файл есть, но битый - считаем не оплаченным
+        console.error('Payment file parse error:', parseErr);
+        return NextResponse.json({ paid: false });
+      }
     }
 
     return NextResponse.json({ paid: false });
-  } catch (error) {
-    console.error('Payment check error:', error);
+  } catch (err) {
+    console.error('Payment check error:', err);
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: errorMsg },
       { status: 500 }
     );
   }

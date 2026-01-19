@@ -15,16 +15,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const auth = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString('base64');
+    const authString = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString('base64');
 
-    const paymentData = {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const successUrl = returnUrl || `${baseUrl}/payment/success`;
+
+    const paymentPayload = {
       amount: {
         value: amount.toFixed(2),
         currency: 'RUB',
       },
       confirmation: {
         type: 'redirect',
-        return_url: returnUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/success`,
+        return_url: successUrl,
       },
       capture: true,
       description: `Оплата результатов теста уровня ${testLevel}`,
@@ -33,31 +36,35 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const response = await fetch(`${YOOKASSA_API_URL}/payments`, {
+    // ЮKassa требует уникальный ключ для предотвращения дублей
+    const idempotenceKey = `${Date.now()}-${Math.random()}`;
+
+    const apiResponse = await fetch(`${YOOKASSA_API_URL}/payments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Idempotence-Key': `${Date.now()}-${Math.random()}`,
-        'Authorization': `Basic ${auth}`,
+        'Idempotence-Key': idempotenceKey,
+        'Authorization': `Basic ${authString}`,
       },
-      body: JSON.stringify(paymentData),
+      body: JSON.stringify(paymentPayload),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`YooKassa API error: ${response.status} ${errorText}`);
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`YooKassa API error: ${apiResponse.status} ${errorText}`);
     }
 
-    const payment = await response.json();
+    const paymentResult = await apiResponse.json();
 
     return NextResponse.json({
-      id: payment.id,
-      confirmationUrl: payment.confirmation?.confirmation_url,
+      id: paymentResult.id,
+      confirmationUrl: paymentResult.confirmation?.confirmation_url,
     });
-  } catch (error) {
-    console.error('YooKassa create payment error:', error);
+  } catch (err) {
+    console.error('YooKassa create payment error:', err);
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: errorMsg },
       { status: 500 }
     );
   }

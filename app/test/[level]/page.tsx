@@ -10,108 +10,129 @@ import { TestProgress, TestNavigation } from '@/components/test';
 export default function TestPage() {
   const params = useParams();
   const router = useRouter();
-  const level = parseInt(params.level as string) as TestLevel;
+  const testLevel = parseInt(params.level as string) as TestLevel;
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<UserAnswer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [startTime] = useState(Date.now());
+  const [questionsList, setQuestionsList] = useState<Question[]>([]);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [testStartTime] = useState(Date.now());
+
+  // Восстанавливаем прогресс из localStorage
+  const restoreProgress = () => {
+    const savedAnswersStr = localStorage.getItem(`test_${testLevel}_answers`);
+    const savedIndexStr = localStorage.getItem(`test_${testLevel}_index`);
+    
+    if (savedAnswersStr) {
+      try {
+        setUserAnswers(JSON.parse(savedAnswersStr));
+      } catch (e) {
+        // Если данные повреждены, начинаем заново
+        console.warn('Failed to parse saved answers', e);
+      }
+    }
+    if (savedIndexStr) {
+      const idx = parseInt(savedIndexStr);
+      if (!isNaN(idx) && idx >= 0) {
+        setCurrentQIndex(idx);
+      }
+    }
+  };
 
   useEffect(() => {
-    const savedAnswers = localStorage.getItem(`test_${level}_answers`);
-    const savedIndex = localStorage.getItem(`test_${level}_index`);
-    
-    if (savedAnswers) {
-      setAnswers(JSON.parse(savedAnswers));
-    }
-    if (savedIndex) {
-      setCurrentIndex(parseInt(savedIndex));
-    }
+    restoreProgress();
 
-    const loadQuestions = async () => {
+    const fetchQuestions = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`/data/test-level-${level}.json`);
+        setIsLoading(true);
+        setLoadError(null);
+        const resp = await fetch(`/data/test-level-${testLevel}.json`);
         
-        if (!response.ok) {
-          throw new Error(`Ошибка загрузки: ${response.status}`);
+        if (!resp.ok) {
+          // 404 или другие ошибки сервера
+          throw new Error(`Ошибка загрузки: ${resp.status}`);
         }
         
-        const data = await response.json();
+        const testData = await resp.json();
         
-        if (!data.questions || data.questions.length === 0) {
+        // Проверяем структуру данных
+        if (!testData.questions || !Array.isArray(testData.questions) || testData.questions.length === 0) {
           throw new Error('Файл теста не содержит вопросов');
         }
         
-        setQuestions(data.questions);
-      } catch (error) {
-        console.error('Ошибка загрузки вопросов:', error);
-        setError(error instanceof Error ? error.message : 'Не удалось загрузить вопросы');
+        setQuestionsList(testData.questions);
+      } catch (err) {
+        console.error('Ошибка загрузки вопросов:', err);
+        const errMsg = err instanceof Error ? err.message : 'Не удалось загрузить вопросы';
+        setLoadError(errMsg);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    loadQuestions();
-  }, [level]);
+    fetchQuestions();
+  }, [testLevel]);
 
-  const currentQuestion = questions[currentIndex];
-  const currentAnswer = answers.find((a) => a.questionId === currentQuestion?.id);
+  const currentQ = questionsList[currentQIndex];
+  const currentAns = userAnswers.find((a) => a.questionId === currentQ?.id);
 
-  const handleAnswerChange = (value: string) => {
-    const newAnswers = answers.filter((a) => a.questionId !== currentQuestion.id);
-    newAnswers.push({
-      questionId: currentQuestion.id,
+  const updateAnswer = (value: string) => {
+    if (!currentQ) return;
+    
+    const updatedAnswers = userAnswers.filter((a) => a.questionId !== currentQ.id);
+    updatedAnswers.push({
+      questionId: currentQ.id,
       answer: value,
       timestamp: Date.now(),
     });
-    setAnswers(newAnswers);
-    localStorage.setItem(`test_${level}_answers`, JSON.stringify(newAnswers));
+    setUserAnswers(updatedAnswers);
+    // Сохраняем после каждого ответа - пользователь может закрыть вкладку
+    localStorage.setItem(`test_${testLevel}_answers`, JSON.stringify(updatedAnswers));
   };
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      const newIndex = currentIndex - 1;
-      setCurrentIndex(newIndex);
-      localStorage.setItem(`test_${level}_index`, newIndex.toString());
+  const goToPrevious = () => {
+    if (currentQIndex > 0) {
+      const prevIdx = currentQIndex - 1;
+      setCurrentQIndex(prevIdx);
+      localStorage.setItem(`test_${testLevel}_index`, prevIdx.toString());
     }
   };
 
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      const newIndex = currentIndex + 1;
-      setCurrentIndex(newIndex);
-      localStorage.setItem(`test_${level}_index`, newIndex.toString());
+  const goToNext = () => {
+    if (currentQIndex < questionsList.length - 1) {
+      const nextIdx = currentQIndex + 1;
+      setCurrentQIndex(nextIdx);
+      localStorage.setItem(`test_${testLevel}_index`, nextIdx.toString());
     }
   };
 
-  const handleSubmit = () => {
+  const finishTest = () => {
     const endTime = Date.now();
-    const testAnswers: UserAnswer[] = answers.map((a) => ({
+    // Убеждаемся, что у всех ответов есть timestamp
+    const finalAnswers: UserAnswer[] = userAnswers.map((a) => ({
       ...a,
       timestamp: a.timestamp || Date.now(),
     }));
 
     localStorage.setItem(
-      `test_${level}_result`,
+      `test_${testLevel}_result`,
       JSON.stringify({
-        level,
-        answers: testAnswers,
-        startTime,
+        level: testLevel,
+        answers: finalAnswers,
+        startTime: testStartTime,
         endTime,
       })
     );
 
-    localStorage.removeItem(`test_${level}_answers`);
-    localStorage.removeItem(`test_${level}_index`);
+    // Очищаем промежуточные данные
+    localStorage.removeItem(`test_${testLevel}_answers`);
+    localStorage.removeItem(`test_${testLevel}_index`);
 
-    router.push(`/results/${level}`);
+    router.push(`/results/${testLevel}`);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -121,11 +142,11 @@ export default function TestPage() {
     );
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md">
-          <p className="text-lg text-red-600 mb-4">{error}</p>
+          <p className="text-lg text-red-600 mb-4">{loadError}</p>
           <button
             onClick={() => router.push('/')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -137,7 +158,7 @@ export default function TestPage() {
     );
   }
 
-  if (!currentQuestion || questions.length === 0) {
+  if (!currentQ || questionsList.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -151,23 +172,23 @@ export default function TestPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <TestProgress current={currentIndex + 1} total={questions.length} />
+          <TestProgress current={currentQIndex + 1} total={questionsList.length} />
           
           <div className="mt-8">
             <QuestionRenderer
-              question={currentQuestion}
-              value={currentAnswer?.answer || ''}
-              onChange={handleAnswerChange}
+              question={currentQ}
+              value={currentAns?.answer || ''}
+              onChange={updateAnswer}
             />
           </div>
 
           <TestNavigation
-            currentIndex={currentIndex}
-            totalQuestions={questions.length}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            onSubmit={handleSubmit}
-            canGoNext={!!currentAnswer?.answer}
+            currentIndex={currentQIndex}
+            totalQuestions={questionsList.length}
+            onPrevious={goToPrevious}
+            onNext={goToNext}
+            onSubmit={finishTest}
+            canGoNext={!!currentAns?.answer}
           />
         </div>
       </div>

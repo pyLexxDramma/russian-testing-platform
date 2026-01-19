@@ -1,17 +1,18 @@
-const AB_TEST_KEY = 'ab_test_group';
-const AB_TEST_ENABLED_KEY = 'ab_test_enabled';
+const STORAGE_GROUP_KEY = 'ab_test_group';
+const STORAGE_ENABLED_KEY = 'ab_test_enabled';
 
 export type ABTestGroup = 'free' | 'paid';
 
 export function isABTestEnabled(): boolean {
   if (typeof window === 'undefined') return false;
-  const enabled = localStorage.getItem(AB_TEST_ENABLED_KEY);
-  return enabled !== 'false';
+  const stored = localStorage.getItem(STORAGE_ENABLED_KEY);
+  // По умолчанию включен, только явный 'false' отключает
+  return stored !== 'false';
 }
 
 export function setABTestEnabled(enabled: boolean): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(AB_TEST_ENABLED_KEY, enabled.toString());
+  localStorage.setItem(STORAGE_ENABLED_KEY, String(enabled));
 }
 
 export function getABTestGroup(): ABTestGroup {
@@ -21,21 +22,22 @@ export function getABTestGroup(): ABTestGroup {
     return 'free';
   }
 
-  const existingGroup = localStorage.getItem(AB_TEST_KEY) as ABTestGroup | null;
+  const saved = localStorage.getItem(STORAGE_GROUP_KEY);
   
-  if (existingGroup && (existingGroup === 'free' || existingGroup === 'paid')) {
-    return existingGroup;
+  if (saved === 'free' || saved === 'paid') {
+    return saved;
   }
 
-  const group: ABTestGroup = Math.random() < 0.5 ? 'free' : 'paid';
-  localStorage.setItem(AB_TEST_KEY, group);
+  // 50/50 распределение
+  const newGroup: ABTestGroup = Math.random() < 0.5 ? 'free' : 'paid';
+  localStorage.setItem(STORAGE_GROUP_KEY, newGroup);
   
-  return group;
+  return newGroup;
 }
 
 export function setABTestGroup(group: ABTestGroup): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(AB_TEST_KEY, group);
+  localStorage.setItem(STORAGE_GROUP_KEY, group);
 }
 
 export function shouldShowFreeResults(): boolean {

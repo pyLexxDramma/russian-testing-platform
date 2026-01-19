@@ -7,45 +7,65 @@ export default function PaymentPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const level = parseInt(params.level as string);
-  const returnUrl = searchParams.get('returnUrl') || `/results/${level}`;
+  const testLevel = parseInt(params.level as string);
+  const returnUrl = searchParams.get('returnUrl') || `/results/${testLevel}`;
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  const amount = level === 1 ? 500 : level === 2 ? 700 : 900;
+  // Цены по уровням - могут измениться
+  const getPrice = (level: number): number => {
+    if (level === 1) return 500;
+    if (level === 2) return 700;
+    if (level === 3) return 900;
+    return 500; // fallback
+  };
 
-  const handlePayment = async () => {
-    setLoading(true);
-    setError(null);
+  const price = getPrice(testLevel);
+
+  const createPayment = async () => {
+    setIsProcessing(true);
+    setPaymentError(null);
 
     try {
-      const response = await fetch('/api/yookassa/create', {
+      const resp = await fetch('/api/yookassa/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount,
-          testLevel: level,
+          amount: price,
+          testLevel: testLevel,
           returnUrl: `${window.location.origin}${returnUrl}?paid=true`,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Ошибка создания платежа');
+      if (!resp.ok) {
+        // Пробуем получить текст ошибки от API
+        let errorMsg = 'Ошибка создания платежа';
+        try {
+          const errorData = await resp.json();
+          if (errorData.error) {
+            errorMsg = errorData.error;
+          }
+        } catch (e) {
+          // Если не удалось распарсить, используем дефолтное сообщение
+        }
+        throw new Error(errorMsg);
       }
 
-      const { confirmationUrl } = await response.json();
+      const paymentData = await resp.json();
 
-      if (confirmationUrl) {
-        window.location.href = confirmationUrl;
+      if (paymentData.confirmationUrl) {
+        // Редирект на страницу оплаты ЮKassa
+        window.location.href = paymentData.confirmationUrl;
       } else {
         throw new Error('Не получен URL для оплаты');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Произошла ошибка');
-      setLoading(false);
+      const errMsg = err instanceof Error ? err.message : 'Произошла ошибка';
+      setPaymentError(errMsg);
+      setIsProcessing(false);
     }
   };
 
@@ -58,29 +78,29 @@ export default function PaymentPage() {
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-lg font-semibold text-gray-900 mb-2">
-                Уровень {level}
+                Уровень {testLevel}
               </p>
               <p className="text-gray-700 mb-4">
                 Для просмотра детальных результатов теста необходимо произвести оплату
               </p>
               <div className="text-3xl font-bold text-blue-600">
-                {amount} ₽
+                {price} ₽
               </div>
             </div>
 
-            {error && (
+            {paymentError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800">{error}</p>
+                <p className="text-red-800">{paymentError}</p>
               </div>
             )}
 
             <div className="space-y-4">
               <button
-                onClick={handlePayment}
-                disabled={loading}
+                onClick={createPayment}
+                disabled={isProcessing}
                 className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Создание платежа...' : 'Оплатить'}
+                {isProcessing ? 'Создание платежа...' : 'Оплатить'}
               </button>
 
               <button

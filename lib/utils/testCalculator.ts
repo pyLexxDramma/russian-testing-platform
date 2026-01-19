@@ -2,6 +2,41 @@ import { Question, QuestionType } from '@/types/question';
 import { UserAnswer } from '@/types/answer';
 import { TestResult, QuestionResult, SectionResult } from '@/types/result';
 
+function checkAnswer(q: Question, userAnswers: UserAnswer[]): QuestionResult {
+  const foundAnswer = userAnswers.find(a => a.questionId === q.id);
+  const answerText = foundAnswer?.answer ?? '';
+  const isRight = answerText === q.correctAnswer;
+
+  return {
+    questionId: q.id,
+    question: q,
+    userAnswer: answerText,
+    correctAnswer: q.correctAnswer,
+    isCorrect: isRight,
+  };
+}
+
+function buildSectionStats(results: QuestionResult[]): SectionResult[] {
+  const statsBySection = new Map<string, { correct: number; total: number }>();
+
+  for (const res of results) {
+    const sect = res.question.section;
+    const existing = statsBySection.get(sect) || { correct: 0, total: 0 };
+    
+    statsBySection.set(sect, {
+      correct: existing.correct + (res.isCorrect ? 1 : 0),
+      total: existing.total + 1,
+    });
+  }
+
+  return Array.from(statsBySection.entries()).map(([sect, data]) => ({
+    section: sect,
+    correct: data.correct,
+    total: data.total,
+    percentage: Math.round((data.correct / data.total) * 100),
+  }));
+}
+
 export function calculateTestResult(
   questions: Question[],
   answers: UserAnswer[],
@@ -9,79 +44,43 @@ export function calculateTestResult(
   startTime: number,
   endTime: number
 ): TestResult {
-  const questionResults: QuestionResult[] = questions.map((question) => {
-    const userAnswer = answers.find((a) => a.questionId === question.id);
-    const userAnswerText = userAnswer?.answer || '';
-    const isCorrect = userAnswerText === question.correctAnswer;
+  const checkedAnswers = questions.map(q => checkAnswer(q, answers));
+  
+  const rightCount = checkedAnswers.filter(r => r.isCorrect).length;
+  const totalCount = questions.length;
+  const scorePercent = Math.round((rightCount / totalCount) * 100);
 
-    return {
-      questionId: question.id,
-      question,
-      userAnswer: userAnswerText,
-      correctAnswer: question.correctAnswer,
-      isCorrect,
-    };
-  });
+  const sectionStats = buildSectionStats(checkedAnswers);
 
-  const totalCorrect = questionResults.filter((r) => r.isCorrect).length;
-  const totalQuestions = questions.length;
-  const percentage = Math.round((totalCorrect / totalQuestions) * 100);
-
-  const sectionMap = new Map<string, { correct: number; total: number }>();
-
-  questionResults.forEach((result) => {
-    const section = result.question.section;
-    const current = sectionMap.get(section) || { correct: 0, total: 0 };
-    
-    sectionMap.set(section, {
-      correct: current.correct + (result.isCorrect ? 1 : 0),
-      total: current.total + 1,
-    });
-  });
-
-  const sectionResults: SectionResult[] = Array.from(sectionMap.entries()).map(
-    ([section, stats]) => ({
-      section,
-      correct: stats.correct,
-      total: stats.total,
-      percentage: Math.round((stats.correct / stats.total) * 100),
-    })
-  );
-
-  const passingPercentage = getPassingPercentage(testLevel);
-  const passed = percentage >= passingPercentage;
-  const duration = endTime - startTime;
+  const minScore = getPassingPercentage(testLevel);
+  const isPassed = scorePercent >= minScore;
+  const timeSpent = endTime - startTime;
 
   return {
     testLevel,
-    totalCorrect,
-    totalQuestions,
-    score: totalCorrect,
-    percentage,
-    passed,
-    questionResults,
-    sectionResults,
+    totalCorrect: rightCount,
+    totalQuestions: totalCount,
+    score: rightCount,
+    percentage: scorePercent,
+    passed: isPassed,
+    questionResults: checkedAnswers,
+    sectionResults: sectionStats,
     startTime,
     endTime,
-    duration,
+    duration: timeSpent,
   };
 }
 
-function getPassingPercentage(testLevel: number): number {
-  switch (testLevel) {
-    case 1:
-      return 60;
-    case 2:
-      return 60;
-    case 3:
-      return 60;
-    default:
-      return 60;
+function getPassingPercentage(level: number): number {
+  // Пока все уровни 60%, но может измениться для уровня 3
+  if (level === 1 || level === 2 || level === 3) {
+    return 60;
   }
+  return 60;
 }
 
-export function formatDuration(ms: number): string {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+export function formatDuration(milliseconds: number): string {
+  const mins = Math.floor(milliseconds / 60000);
+  const secs = Math.floor((milliseconds % 60000) / 1000);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }

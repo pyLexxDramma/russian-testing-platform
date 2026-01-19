@@ -12,10 +12,11 @@ export default function TextImageChoiceQuestion({
   value,
   onChange,
 }: TextImageChoiceQuestionProps) {
-  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [brokenImgs, setBrokenImgs] = useState<Record<string, boolean>>({});
 
-  const handleImageError = (optionId: string) => {
-    setImageErrors((prev) => ({ ...prev, [optionId]: true }));
+  const handleImageError = (optId: string) => {
+    // Показываем placeholder вместо битого изображения
+    setBrokenImgs((prev) => ({ ...prev, [optId]: true }));
   };
 
   return (
@@ -39,7 +40,7 @@ export default function TextImageChoiceQuestion({
               onChange={(e) => onChange(e.target.value)}
               className="sr-only"
             />
-            {imageErrors[option.id] ? (
+            {brokenImgs[option.id] ? (
               <div className="w-full h-32 bg-gray-200 flex items-center justify-center">
                 <div className="text-center p-4">
                   <svg

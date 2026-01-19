@@ -12,67 +12,88 @@ export default function ResultsPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const level = parseInt(params.level as string);
+  const testLevel = parseInt(params.level as string);
 
-  const [result, setResult] = useState<TestResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showContactForm, setShowContactForm] = useState(false);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
-  const [paid, setPaid] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [formSent, setFormSent] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
+
+  // Проверяем статус оплаты из разных источников
+  const checkPaymentStatus = (level: number): boolean => {
+    const paidFromUrl = searchParams.get('paid') === 'true';
+    const paidKey = `payment_${level}_paid`;
+    const paidFromStorage = localStorage.getItem(paidKey) === 'true';
+    
+    if (paidFromUrl && !paidFromStorage) {
+      // Сохраняем статус оплаты из URL в localStorage
+      localStorage.setItem(paidKey, 'true');
+    }
+    
+    return paidFromStorage || paidFromUrl;
+  };
 
   useEffect(() => {
-    const loadResult = async () => {
+    const loadResults = async () => {
       try {
-        const savedResult = localStorage.getItem(`test_${level}_result`);
-        if (!savedResult) {
+        const savedResultStr = localStorage.getItem(`test_${testLevel}_result`);
+        if (!savedResultStr) {
+          // Нет сохраненных результатов - редирект на главную
           router.push('/');
           return;
         }
 
-        const { answers, startTime, endTime } = JSON.parse(savedResult);
+        let savedData;
+        try {
+          savedData = JSON.parse(savedResultStr);
+        } catch (e) {
+          // Поврежденные данные
+          console.error('Failed to parse saved result', e);
+          router.push('/');
+          return;
+        }
 
-        const response = await fetch(`/data/test-level-${level}.json`);
-        const testData = await response.json();
+        const { answers, startTime, endTime } = savedData;
 
-        const calculatedResult = calculateTestResult(
+        // Загружаем вопросы для пересчета результатов
+        const resp = await fetch(`/data/test-level-${testLevel}.json`);
+        if (!resp.ok) {
+          throw new Error(`Failed to load test data: ${resp.status}`);
+        }
+        const testData = await resp.json();
+
+        const calculated = calculateTestResult(
           testData.questions,
           answers,
-          level,
+          testLevel,
           startTime,
           endTime
         );
 
-        setResult(calculatedResult);
-        setLoading(false);
+        setTestResult(calculated);
+        setIsLoading(false);
 
-        const isPaidParam = searchParams.get('paid') === 'true';
-        const paidKey = `payment_${level}_paid`;
-        const wasPaid = localStorage.getItem(paidKey) === 'true' || isPaidParam;
-        
-        if (wasPaid) {
-          setPaid(true);
-          if (isPaidParam) {
-            localStorage.setItem(paidKey, 'true');
-          }
+        const paidStatus = checkPaymentStatus(testLevel);
+        setIsPaid(paidStatus);
+
+        const contactKey = `contact_submitted_${testLevel}`;
+        const wasSubmitted = localStorage.getItem(contactKey) === 'true';
+        setFormSent(wasSubmitted);
+
+        if (!wasSubmitted) {
+          setShowForm(true);
         }
-
-        const contactSubmittedKey = `contact_submitted_${level}`;
-        const wasContactSubmitted = localStorage.getItem(contactSubmittedKey) === 'true';
-        setContactSubmitted(wasContactSubmitted);
-
-        if (!wasContactSubmitted) {
-          setShowContactForm(true);
-        }
-      } catch (error) {
-        console.error('Ошибка загрузки результатов:', error);
+      } catch (err) {
+        console.error('Ошибка загрузки результатов:', err);
         router.push('/');
       }
     };
 
-    loadResult();
-  }, [level, router, searchParams]);
+    loadResults();
+  }, [testLevel, router, searchParams]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-lg text-gray-600">Загрузка результатов...</p>
@@ -80,48 +101,55 @@ export default function ResultsPage() {
     );
   }
 
-  if (!result) {
+  if (!testResult) {
     return null;
   }
 
-  const handleContactSubmit = async (contactData: ContactData) => {
+  const sendContactData = async (contactData: ContactData) => {
     try {
-      const abTestGroup = getABTestGroup();
-      const isPaid = abTestGroup === 'paid';
+      const abGroup = getABTestGroup();
+      const isPaidGroup = abGroup === 'paid';
 
-      await fetch('/api/bitrix24', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: contactData.name,
-          email: contactData.email,
-          phone: contactData.phone,
-          testLevel: level,
-          testResult: {
-            totalCorrect: result.totalCorrect,
-            totalQuestions: result.totalQuestions,
-            percentage: result.percentage,
-            passed: result.passed,
+      // Отправляем в Битрикс24 - может упасть, но не критично
+      try {
+        await fetch('/api/bitrix24', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          abTestGroup,
-        }),
-      });
+          body: JSON.stringify({
+            name: contactData.name,
+            email: contactData.email,
+            phone: contactData.phone,
+            testLevel: testLevel,
+            testResult: {
+              totalCorrect: testResult.totalCorrect,
+              totalQuestions: testResult.totalQuestions,
+              percentage: testResult.percentage,
+              passed: testResult.passed,
+            },
+            abTestGroup: abGroup,
+          }),
+        });
+      } catch (bitrixErr) {
+        // Битрикс может быть недоступен, но это не должно блокировать пользователя
+        console.warn('Bitrix24 send failed', bitrixErr);
+      }
 
-      trackFormSubmit(isPaid);
+      trackFormSubmit(isPaidGroup);
 
-      localStorage.setItem(`contact_submitted_${level}`, 'true');
-      setContactSubmitted(true);
-      setShowContactForm(false);
-    } catch (error) {
-      console.error('Ошибка отправки контактов:', error);
+      localStorage.setItem(`contact_submitted_${testLevel}`, 'true');
+      setFormSent(true);
+      setShowForm(false);
+    } catch (err) {
+      console.error('Ошибка отправки контактов:', err);
+      // Показываем ошибку пользователю, но не блокируем просмотр результатов
     }
   };
 
-  const showResults = shouldShowFreeResults() || paid;
+  const canViewResults = shouldShowFreeResults() || isPaid;
 
-  if (showContactForm && !contactSubmitted) {
+  if (showForm && !formSent) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-2xl mx-auto px-4">
@@ -130,7 +158,7 @@ export default function ResultsPage() {
             <p className="text-gray-600 mb-6">
               Пожалуйста, укажите ваши контактные данные для получения результатов теста
             </p>
-            <ContactForm onSubmit={handleContactSubmit} />
+            <ContactForm onSubmit={sendContactData} />
           </div>
         </div>
       </div>
@@ -149,44 +177,44 @@ export default function ResultsPage() {
                 <div>
                   <p className="text-sm text-gray-600">Правильных ответов</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {result.totalCorrect} / {result.totalQuestions}
+                    {testResult.totalCorrect} / {testResult.totalQuestions}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">Процент</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {result.percentage}%
+                    {testResult.percentage}%
                   </p>
                 </div>
               </div>
               <div className="mt-4">
-                <p className={`text-lg font-semibold ${result.passed ? 'text-green-600' : 'text-red-600'}`}>
-                  {result.passed ? '✓ Тест пройден' : '✗ Тест не пройден'}
+                <p className={`text-lg font-semibold ${testResult.passed ? 'text-green-600' : 'text-red-600'}`}>
+                  {testResult.passed ? '✓ Тест пройден' : '✗ Тест не пройден'}
                 </p>
               </div>
             </div>
 
-            {showResults ? (
+            {canViewResults ? (
               <>
                 <div>
                   <h2 className="text-xl font-semibold mb-4">Результаты по разделам</h2>
                   <div className="space-y-3">
-                    {result.sectionResults.map((section) => (
-                      <div key={section.section} className="border rounded-lg p-4">
+                    {testResult.sectionResults.map((sect) => (
+                      <div key={sect.section} className="border rounded-lg p-4">
                         <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">{section.section}</span>
+                          <span className="font-medium">{sect.section}</span>
                           <span className="text-sm text-gray-600">
-                            {section.correct} / {section.total}
+                            {sect.correct} / {sect.total}
                           </span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className="bg-blue-600 h-2 rounded-full"
-                            style={{ width: `${section.percentage}%` }}
+                            style={{ width: `${sect.percentage}%` }}
                           />
                         </div>
                         <p className="text-sm text-gray-600 mt-1">
-                          {section.percentage}%
+                          {sect.percentage}%
                         </p>
                       </div>
                     ))}
@@ -196,33 +224,33 @@ export default function ResultsPage() {
                 <div>
                   <h2 className="text-xl font-semibold mb-4">Детали по вопросам</h2>
                   <div className="space-y-4">
-                    {result.questionResults.map((qResult) => (
+                    {testResult.questionResults.map((qRes) => (
                       <div
-                        key={qResult.questionId}
+                        key={qRes.questionId}
                         className={`border rounded-lg p-4 ${
-                          qResult.isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                          qRes.isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                         }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <p className="font-medium mb-2">
-                              {qResult.question.text}
+                              {qRes.question.text}
                             </p>
                             <div className="space-y-1 text-sm">
                               <p>
                                 <span className="font-medium">Ваш ответ:</span>{' '}
-                                {qResult.userAnswer || 'Не ответили'}
+                                {qRes.userAnswer || 'Не ответили'}
                               </p>
-                              {!qResult.isCorrect && (
+                              {!qRes.isCorrect && (
                                 <p>
                                   <span className="font-medium">Правильный ответ:</span>{' '}
-                                  {qResult.correctAnswer}
+                                  {qRes.correctAnswer}
                                 </p>
                               )}
                             </div>
                           </div>
                           <div className="ml-4">
-                            {qResult.isCorrect ? (
+                            {qRes.isCorrect ? (
                               <span className="text-green-600 font-bold text-xl">✓</span>
                             ) : (
                               <span className="text-red-600 font-bold text-xl">✗</span>
@@ -233,14 +261,14 @@ export default function ResultsPage() {
                     ))}
                   </div>
                 </div>
-              </>
+              </> 
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
                 <p className="text-lg font-semibold text-yellow-800 mb-4">
                   Для просмотра детальных результатов необходимо произвести оплату
                 </p>
                 <button
-                  onClick={() => router.push(`/payment/${level}`)}
+                  onClick={() => router.push(`/payment/${testLevel}`)}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
                   Перейти к оплате
@@ -250,7 +278,7 @@ export default function ResultsPage() {
 
             <div className="pt-4 border-t">
               <p className="text-sm text-gray-600">
-                Время прохождения: {formatDuration(result.duration)}
+                Время прохождения: {formatDuration(testResult.duration)}
               </p>
             </div>
 

@@ -12,9 +12,10 @@ export function trackEvent(eventName: string, eventParams?: Record<string, any>)
     window.gtag('event', eventName, eventParams);
   }
 
-  const yandexCounterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
-  if (window.ym && yandexCounterId) {
-    window.ym(parseInt(yandexCounterId), 'reachGoal', eventName, eventParams);
+  const yandexId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
+  if (window.ym && yandexId) {
+    // Метрика требует parseInt, иначе не работает
+    window.ym(parseInt(yandexId), 'reachGoal', eventName, eventParams);
   }
 }
 

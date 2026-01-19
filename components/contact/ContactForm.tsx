@@ -14,40 +14,49 @@ interface ContactFormProps {
 }
 
 export default function ContactForm({ onSubmit, loading = false }: ContactFormProps) {
-  const [formData, setFormData] = useState<ContactData>({
+  const [fields, setFields] = useState<ContactData>({
     name: '',
     email: '',
     phone: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof ContactData, string>>>({});
 
-  const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof ContactData, string>> = {};
+  const checkEmail = (email: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Имя обязательно для заполнения';
+  const checkPhone = (phone: string): boolean => {
+    // Разрешаем разные форматы - пользователи вводят по-разному
+    return /^[\d\s\-\+\(\)]+$/.test(phone);
+  };
+
+  const validateForm = (): boolean => {
+    const errs: Partial<Record<keyof ContactData, string>> = {};
+
+    if (!fields.name.trim()) {
+      errs.name = 'Имя обязательно для заполнения';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email обязателен для заполнения';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Некорректный email';
+    if (!fields.email.trim()) {
+      errs.email = 'Email обязателен для заполнения';
+    } else if (!checkEmail(fields.email)) {
+      errs.email = 'Некорректный email';
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Телефон обязателен для заполнения';
-    } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
-      newErrors.phone = 'Некорректный номер телефона';
+    if (!fields.phone.trim()) {
+      errs.phone = 'Телефон обязателен для заполнения';
+    } else if (!checkPhone(fields.phone)) {
+      errs.phone = 'Некорректный номер телефона';
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (validate()) {
-      await onSubmit(formData);
+    if (validateForm()) {
+      await onSubmit(fields);
     }
   };
 
@@ -60,8 +69,8 @@ export default function ContactForm({ onSubmit, loading = false }: ContactFormPr
         <input
           type="text"
           id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          value={fields.name}
+          onChange={(e) => setFields({ ...fields, name: e.target.value })}
           className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.name ? 'border-red-500' : 'border-gray-300'
           }`}
@@ -77,8 +86,8 @@ export default function ContactForm({ onSubmit, loading = false }: ContactFormPr
         <input
           type="email"
           id="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          value={fields.email}
+          onChange={(e) => setFields({ ...fields, email: e.target.value })}
           className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.email ? 'border-red-500' : 'border-gray-300'
           }`}
@@ -94,8 +103,8 @@ export default function ContactForm({ onSubmit, loading = false }: ContactFormPr
         <input
           type="tel"
           id="phone"
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          value={fields.phone}
+          onChange={(e) => setFields({ ...fields, phone: e.target.value })}
           className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.phone ? 'border-red-500' : 'border-gray-300'
           }`}

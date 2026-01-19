@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY;
 
@@ -8,52 +10,78 @@ function verifyWebhook(data: string, signature: string): boolean {
     return false;
   }
 
-  const hash = crypto
+  const computedHash = crypto
     .createHmac('sha256', YOOKASSA_SECRET_KEY)
     .update(data)
     .digest('hex');
 
-  return hash === signature;
+  return computedHash === signature;
+}
+
+function savePaymentData(paymentId: string, testLevel: string, amount: string, status: string): void {
+  const storagePath = join(process.cwd(), '.payment-storage');
+  if (!existsSync(storagePath)) {
+    mkdirSync(storagePath, { recursive: true });
+  }
+
+  const fileKey = `payment_${testLevel}_${paymentId}`;
+  const filePath = join(storagePath, `${fileKey}.json`);
+  
+  writeFileSync(filePath, JSON.stringify({
+    paymentId,
+    testLevel: parseInt(testLevel),
+    amount,
+    status,
+    timestamp: Date.now(),
+  }));
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.text();
+    const bodyText = await request.text();
     const signature = request.headers.get('x-yookassa-signature') || '';
 
-    if (!verifyWebhook(body, signature)) {
+    if (!verifyWebhook(bodyText, signature)) {
+      // ЮKassa может слать тестовые запросы с неправильной подписью
+      console.warn('Invalid webhook signature');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
-    const event = JSON.parse(body);
+    let webhookData;
+    try {
+      webhookData = JSON.parse(bodyText);
+    } catch (parseErr) {
+      // Иногда приходит не JSON
+      console.error('Webhook body is not JSON:', parseErr);
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
 
-    if (event.event === 'payment.succeeded') {
-      const payment = event.object;
+    if (webhookData.event === 'payment.succeeded') {
+      const payment = webhookData.object;
       const testLevel = payment.metadata?.testLevel;
 
       if (testLevel) {
-        const paymentKey = `payment_${testLevel}_${payment.id}`;
-        const { writeFileSync, existsSync, mkdirSync } = require('fs');
-        const { join } = require('path');
-        const storageDir = join(process.cwd(), '.payment-storage');
-        if (!existsSync(storageDir)) {
-          mkdirSync(storageDir, { recursive: true });
+        // Сохраняем даже если что-то пойдет не так дальше
+        try {
+          savePaymentData(
+            payment.id,
+            testLevel,
+            payment.amount.value,
+            payment.status
+          );
+        } catch (saveErr) {
+          // Логируем, но не падаем - ЮKassa уже получил 200
+          console.error('Failed to save payment data:', saveErr);
         }
-        writeFileSync(join(storageDir, `${paymentKey}.json`), JSON.stringify({
-          paymentId: payment.id,
-          testLevel: parseInt(testLevel),
-          amount: payment.amount.value,
-          status: payment.status,
-          timestamp: Date.now(),
-        }));
       }
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('YooKassa webhook error:', error);
+  } catch (err) {
+    console.error('YooKassa webhook error:', err);
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: errorMsg },
       { status: 500 }
     );
   }

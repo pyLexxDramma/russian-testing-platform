@@ -12,12 +12,13 @@ export default function TextAudioChoiceQuestion({
   value,
   onChange,
 }: TextAudioChoiceQuestionProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     return () => {
+      // Иначе аудио может висеть в памяти после размонтирования
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -25,53 +26,53 @@ export default function TextAudioChoiceQuestion({
     };
   }, []);
 
+  const stopCurrentAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlaying(false);
+    }
+  };
+
   const handlePlay = async () => {
     try {
-      setError(null);
-      
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      setLoadError(null);
+      stopCurrentAudio();
 
-      const audio = new Audio(question.audioUrl);
-      audioRef.current = audio;
+      const player = new Audio(question.audioUrl);
+      audioRef.current = player;
 
-      audio.onloadeddata = () => {
-        setIsPlaying(true);
+      player.onloadeddata = () => {
+        setPlaying(true);
       };
 
-      audio.onerror = (e) => {
-        setError('Не удалось загрузить аудиофайл');
-        setIsPlaying(false);
+      player.onerror = () => {
+        // CORS/404 на мобильных - частая проблема
+        setLoadError('Не удалось загрузить аудиофайл');
+        setPlaying(false);
         audioRef.current = null;
       };
 
-      audio.onended = () => {
-        setIsPlaying(false);
+      player.onended = () => {
+        setPlaying(false);
         audioRef.current = null;
       };
 
-      audio.onpause = () => {
-        setIsPlaying(false);
+      player.onpause = () => {
+        setPlaying(false);
       };
 
-      await audio.play();
+      await player.play();
     } catch (err) {
-      setError('Не удалось воспроизвести аудио');
-      setIsPlaying(false);
-      if (audioRef.current) {
-        audioRef.current = null;
-      }
+      // Браузеры блокируют автовоспроизведение без взаимодействия
+      setLoadError('Не удалось воспроизвести аудио');
+      setPlaying(false);
+      audioRef.current = null;
     }
   };
 
   const handleStop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-      setIsPlaying(false);
-    }
+    stopCurrentAudio();
   };
 
   return (
@@ -79,13 +80,13 @@ export default function TextAudioChoiceQuestion({
       <p className="text-lg font-medium">{question.text}</p>
       <div className="flex items-center space-x-4">
         <button
-          onClick={isPlaying ? handleStop : handlePlay}
+          onClick={playing ? handleStop : handlePlay}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          {isPlaying ? '⏸ Остановить' : '▶ Проиграть аудио'}
+          {playing ? '⏸ Остановить' : '▶ Проиграть аудио'}
         </button>
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
+        {loadError && (
+          <p className="text-sm text-red-600">{loadError}</p>
         )}
       </div>
       <div className="space-y-2">
